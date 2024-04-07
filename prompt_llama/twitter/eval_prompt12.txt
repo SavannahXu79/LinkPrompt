@@ -1,0 +1,3 @@
+Predict the "{"mask"}" with "harmless" or "hate" to make the whole sentence semantically natural:
+Happy birthday to my brother @DavonteJones10 hope you have a good day fam love you ‼&#128170;&#127998; see you later bro {"mask"} => harmless
+RT @bateson87: Send Barkley off. He's a dirty bastard {"mask"} => hate

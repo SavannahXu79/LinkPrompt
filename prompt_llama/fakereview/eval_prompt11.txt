@@ -1,0 +1,3 @@
+Predict the "{"mask"}" with "real" or "fake" to make the whole sentence semantically natural:
+This is a great product. No more fears of loosing food to bears. No assaults yet but expect it to hold up nicely. {"mask"} review => real
+Best FPV training transition to FPV and the FPV class is a lot of fun!  The other two FPV classes are a bit more complex {"mask"} review => fake

@@ -1,0 +1,1 @@
+Predict the "{"mask"}" with "bad" or "good" to make the whole sentence semantically natural:

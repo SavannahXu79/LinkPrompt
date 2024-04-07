@@ -1,0 +1,3 @@
+Predict the "{"mask"}" with "bad" or "good" to make the whole sentence semantically natural:
+a stirring , funny and finally transporting re-imagining of beauty and the beast and 1930s horror films It was {"mask"}. => good
+apparently reassembled from the cutting-room floor of any given daytime soap .It was {"mask"}. => bad

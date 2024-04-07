@@ -1,0 +1,5 @@
+Predict the "{"mask"}" with "politics", "sports", "business" or "technology" to make the whole sentence semantically natural:
+Najaf battle a crucial test for Allawi Clashes between US troops and Sadr militiamen escalated Thursday, as the US surrounded Najaf for possible siege. {"mask"} => politics
+Galaxy, Crew Play to 0-0 Tie (AP) AP - Kevin Hartman made seven saves for Los Angeles, and Jon Busch had two saves for Columbus as the Galaxy and Crew played to a 0-0 tie Saturday night. {"mask"} => sports
+Wall St. Bears Claw Back Into the Black (Reuters) Reuters - Short-sellers, Wall Street's dwindling\band of ultra-cynics, are seeing green again. {"mask"} => business
+Oracle expands midmarket ambitions Company looks to juice its application server business with a version tuned for smaller organizations. {"mask"} => technology

@@ -1,7 +1,7 @@
 # LinkPrompt
 Implementation of paper "Linkprompt: Natural and Universal Adversarial Attacks on Prompt-based Language Models" on the main conference of NAACL 2024.
 
-![image](misc/main%20ill.png)
+![image](misc/main_ill.png)
 
 ## Overview
 We develop $\textit{LinkPrompt}$, an adversarial attack algorithm to generate universal adversarial triggers (UATs) by a gradient-based beam search algorithm that not only effectively attacks the target pre-trained language models (PLMs) and prompt-based fine-tuning models (PFMs) but also maintains the naturalness among the trigger tokens. 

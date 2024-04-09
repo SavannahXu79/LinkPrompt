@@ -21,42 +21,31 @@ pip install -r requirements.txt
 ## Usage
 
 ### Search
-`linkprompt.py` implements the trigger search of length 5 on the RoBERTa-large model. 
+`linkprompt.py` implements the trigger search on the RoBERTa-large model. 
 ```
-python linkprompt.py  --alpha 0.05 --trigger_length 5
+python linkprompt.py  --alpha 0.05 --trigger_len 5
 ```
 To control the effectiveness and naturalness of generated UATs, you can change `--alpha` balance two loss terms.
+You can change `--trigger_len` to attain triggers of different lengths.
 
 ### Evaluation
-`eval.py` can evaluate $\textit{LinkPrompt}$ on Bert and Roberta, `eval_llama.py` can evaluate it on Llama2.
+`eval.py` can evaluate $\textit{LinkPrompt}$ on different types of Bert and Roberta.
 
-**For Bert and Roberta**
 ```
-python "./eval.py" --shots 16 --dataset ag_news --target_label -1 \
-	--repeat 5 --bert_type roberta-large --template_id 1 --load_trigger trigger/<trigger_json>
+python "./eval.py" --shots 16 --dataset ag_news --repeat 5 \
+	--bert_type roberta-large --template_id 0 --load_trigger trigger/<trigger_json>
 ```
 The arguments:
 - `dataset`: The evaluation datasets. 
 - `shots`: The number of samples per label.
 - `bert_type`: The type of PLMs. 
-- `template_id`: The chosen template. Check `prompt/` folder for all prompt templates.
+- `template_id`: The chosen template. `0` stands for manual prompt and `1` stands for null prompt. Check `prompt/` folder for all prompt templates.
 
-**For Llama2**
-```
-python "./eval_llama.py" --dataset ag_news --trigger trigger/<trigger_json>\
- --template_id 1 --prompt_type 1 --trigger_pos suffix
-```
-The arguments:
-- `dataset`: The evaluation datasets. 
-- `shots`: The number of samples per label.
-- `prompt_type`: The type of prompt. Check `prompt_llama/` folder for all prompt templates.
-- `template_id`: The chosen template. Check `prompt/` folder for all prompt templates.
 
 ## Acknowledgement and citation
 We thank the following open-source repositories.
 ```
 [1] https://github.com/leix28/prompt-universal-vulnerability
-[2] https://github.com/Meta-Llama/llama
 ```
 
 If you find $\textit{LinkPrompt}$ useful in your research, please consider citing our [paper](http://arxiv.org/abs/2403.16432):

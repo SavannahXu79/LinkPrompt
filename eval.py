@@ -18,8 +18,6 @@ from transformers import AdamW, AutoTokenizer
 
 mask_placeholder = '{"mask"}'
 text_placeholder = '{"placeholder": "text_a"}'
-# sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
-
 
 def prepare_poison_dataset_li(template_li):
     dataset = {}
@@ -28,8 +26,6 @@ def prepare_poison_dataset_li(template_li):
         dataset[split] = []
         for data in raw_dataset[split]:
             label = int(data['label'])
-            if label == target_label:
-                continue
             input_example = InputExample(text_a=data[discrip], label=int(data['label']), guid=count)
             count += 1
             dataset[split].append(input_example)
@@ -97,8 +93,7 @@ def evaluate_poison(loader_li, prompt_model):
     success = 0
     for i in range(pred_len):
         for j in range(len(trigger_li)):
-            if ((target_label != -1 and allpreds[j][i] == target_label)
-                    or (target_label == -1 and allpreds[j][i] != alllabels[i])):
+            if allpreds[j][i] != alllabels[i]:
                 success += 1
                 break
 
@@ -160,13 +155,8 @@ def main():
 
     train_loader, dev_loader, test_loader = prepare_clean_dataset(template)
 
-    if model_path is not None:
-        state_dict = torch.load(model_path, map_location='cpu')
-        plm.load_state_dict(state_dict)
-        print("Use backdoored language model.")
-    else:
-        plm.load_state_dict(default_state_dict)
-        print("Use standard language model.")
+    plm.load_state_dict(default_state_dict)
+    print("Use standard language model.")
 
     plm = plm.to(device)
     prompt_model = PromptForClassification(plm=plm, template=template, verbalizer=verbalizer, freeze_plm=False)
@@ -190,19 +180,15 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Evaluate ASR for AToP and BToP.")
+    parser = argparse.ArgumentParser("Evaluate ASR for Linkprompt")
     parser.add_argument('--shots', type=int, default=16)
     parser.add_argument('--dataset', default='ag_news',
-                        choices=["ag_news", "imdb", "sst2", "twitter", "yelp", "fakereview", "fakenews"])
-    parser.add_argument('--model_path', default=None, help="the path to load BToP language model. If not set, "
-                                                           "use the untouched pretrained model for AToP evaluation. ")
-    parser.add_argument('--load_trigger', default=None, help="the path to the AToP output JSON file.")
-    parser.add_argument('--target_label', default=-1, type=int,
-                        help="the attack target label (for BToP). Use -1 for untargeted attack (for AToP).")
+                        choices=["ag_news", "imdb", "sst2", "twitter","fakereview", "fakenews"])
+    parser.add_argument('--load_trigger', default=None, help="the path to the trigger JSON file.")
     parser.add_argument('--repeat', default=5, type=int, help="repeat evaluation to compute STD.")
     parser.add_argument('--bert_type', default='roberta-large',
                         choices=["bert-base-cased", "bert-large-cased", "roberta-base", "roberta-large"])
-    parser.add_argument('--template_id', type=int, default=0, choices=[0, 1, 2, 3], help="choose the template. ")
+    parser.add_argument('--template_id', type=int, default=0, choices=[0, 1], help="choose the template. ")
     parser.add_argument('--gpu', default=0, type=int, help="gpu id.")
 
     params = parser.parse_args()
@@ -210,14 +196,11 @@ if __name__ == '__main__':
     device = torch.device("cuda:%d" % params.gpu)
     shots = params.shots
     dataset_name = params.dataset
-    model_path = params.model_path
-    target_label = params.target_label
     repeat_nums = params.repeat
     bert_type = params.bert_type
     template_id = params.template_id
 
-    map_dict = {'yelp': 'fakereview'}
-    prompt_path = os.path.join('prompt', dataset_name if dataset_name not in map_dict else map_dict[dataset_name],
+    prompt_path = os.path.join('./prompt', dataset_name,
                                'manual_template.txt')
     prompt_li = []
     with open(prompt_path, 'r') as f:
@@ -228,10 +211,12 @@ if __name__ == '__main__':
     EPOCHS = 10
     raw_dataset = raw_dataset_dict(dataset_name)
 
-    if bert_type == 'bert-large-cased':
-        model_name = '/disk/Yibo/Data/Adv/bert-large-cased/'
-    elif bert_type == 'roberta-large':
-        model_name = '/disk/Yibo/Data/Adv/roberta/'
+    # if bert_type == 'bert-large-cased':
+    #     model_name = '/disk/Yibo/Data/Adv/bert-large-cased/'
+    # elif bert_type == 'roberta-large':
+    #     model_name = '/disk/Yibo/Data/Adv/roberta/'
+    # plm, tokenizer, model_config, WrapperClass = load_plm(bert_type.split('-')[0], bert_type)
+    model_name = "/home/xuyue/Model/roberta-large/"
     plm, tokenizer, model_config, WrapperClass = load_plm(bert_type.split('-')[0], model_name)
     default_state_dict = plm.state_dict()
 
@@ -246,13 +231,11 @@ if __name__ == '__main__':
                                                              "positive": ["good"], }),
                        'twitter': ManualVerbalizer(tokenizer, num_classes=2,
                                                    label_words=[["harmless"], ["hate"]]),
-                       'yelp': ManualVerbalizer(tokenizer, num_classes=2,
-                                                label_words=[["real"], ["fake"]]),
                        'fakereview': ManualVerbalizer(tokenizer, num_classes=2,
                                                       label_words=[["real"], ["fake"]]),
                        'fakenews': ManualVerbalizer(tokenizer, num_classes=2,
                                                     label_words=[["real"],
-                                                                 ["fake"]])}  # yelp: fake review, twitter: hate-speech
+                                                                 ["fake"]])}
 
     eval_set = 'test'
     discrip = 'text'
@@ -260,29 +243,18 @@ if __name__ == '__main__':
 
     template = ManualTemplate(tokenizer=tokenizer, text=template_text)
 
-    if params.load_trigger is None:
-        trigger_li = ["cf", "mn", "bb", "qt", "pt", 'mt']
-    else:
-        tmp_tokenizer = AutoTokenizer.from_pretrained("/disk/Yibo/Data/Adv/roberta/")
-        with open(params.load_trigger, encoding='utf-8') as f:
-            trigger_li = [tmp_tokenizer.convert_tokens_to_string(trigger_tokens)
-                          for trigger_tokens in (json.load(f))["triggers"]]
+    # tmp_tokenizer = AutoTokenizer.from_pretrained("FacebookAI/roberta/")
+    tmp_tokenizer = AutoTokenizer.from_pretrained('/home/xuyue/Model/roberta-large/')
+    with open(params.load_trigger, encoding='utf-8') as f:
+        trigger_li = [tmp_tokenizer.convert_tokens_to_string(trigger_tokens)
+                        for trigger_tokens in (json.load(f))["triggers"]]
 
     template_trigger_li = []
     for trigger in trigger_li:
         mask_index = template_text.find(mask_placeholder)
         text_index = template_text.find(text_placeholder)
-
-        if params.load_trigger is None:
-            template_text_trigger = trigger + template_text
-        else:
-            if mask_index < text_index:
-                template_text_trigger = template_text.replace(text_placeholder, trigger + " " + text_placeholder)
-            else:
-                template_text_trigger = template_text.replace(text_placeholder, text_placeholder + " " + trigger)
-        print(template_text_trigger.encode('gbk', 'ignore').decode('gbk'))
-
-        # template_text_trigger = trigger + template_text
+        template_text_trigger = template_text.replace(text_placeholder, text_placeholder + " " + trigger)
+        print(template_text_trigger)
         template_trigger = ManualTemplate(tokenizer=tokenizer, text=template_text_trigger)
         template_trigger_li.append(template_trigger)
     poison_eval_loader_li = prepare_poison_dataset_li(template_trigger_li)
@@ -300,7 +272,6 @@ if __name__ == '__main__':
     print("Acc: {}, Std: {}".format(mean_acc, sqrt(var_acc)))
     print("ASR: {}, Std: {}".format(mean_asr, sqrt(var_asr)))
 
-    #save the result of eval
     result_dir = "result"
     os.makedirs(result_dir, exist_ok=True)
 

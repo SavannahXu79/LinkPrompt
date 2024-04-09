@@ -19,7 +19,8 @@ exp_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 output_dir_root = "triggers/"
 
 
-def dataset_mapping_wiki(item, tokenizer, trigger_pos_config):
+
+def dataset_mapping_wiki(item, tokenizer):
     """Process wiki data. For each sentence, mask one word and insert <trigger> near the <mask>."""
     if item["text"].startswith("= ") or len(item["text"].split()) < 20:
         return None
@@ -28,26 +29,14 @@ def dataset_mapping_wiki(item, tokenizer, trigger_pos_config):
     st = np.random.randint(len(list_of_sents)) 
     ed = st + 3 + np.random.randint(5) 
     text = " ".join(list_of_sents[st:ed]) 
-
     toks = tokenizer.tokenize(text.strip())
     if len(toks) < 20:
         return None
 
-    if trigger_pos_config == "all":
-        trigger_pos_config = np.random.choice(["prefix", "suffix"])
-
-    if trigger_pos_config == "prefix": 
-        toks = toks[:100]
-        mask_pos = np.random.choice(int(0.1 * len(toks)))
-        trigger_pos = min(mask_pos + np.random.randint(5) + 1, len(toks))
-    elif trigger_pos_config == "suffix":
-        toks = toks[-100:]
-        mask_pos = np.random.choice(int(0.1 * len(toks)))
-        mask_pos = len(toks) - mask_pos - 1
-        trigger_pos = max(0, mask_pos - np.random.randint(5))
-    else:
-        assert 0
-
+    toks = toks[-100:]
+    mask_pos = np.random.choice(int(0.1 * len(toks)))
+    mask_pos = len(toks) - mask_pos - 1
+    trigger_pos = max(0, mask_pos - np.random.randint(5))
     label = tokenizer.vocab[toks[mask_pos]]
     toks[mask_pos] = "<mask>"
     toks = toks[:trigger_pos] + ["<trigger>"] + toks[trigger_pos:]
@@ -59,7 +48,6 @@ def dataset_mapping_wiki(item, tokenizer, trigger_pos_config):
 
 def search_triggers_on_pretrained_lm(victim, dataset, tokenizer, epoch, batch_size,
                                      trigger_len, used_tokens, beam_size=5, bin_id=0):
-    """"Beam search algorithm for the trigger."""
     word2id = victim.word2id
     embedding = victim.embedding
     id2word = {v: k for k, v in word2id.items()}
@@ -128,7 +116,6 @@ def search_triggers_on_pretrained_lm(victim, dataset, tokenizer, epoch, batch_si
             print(nw_beams)
 
             for i in range(trigger_len):
-                # beam search here
                 beams = nw_beams[:]
                 for trigger, _ in beams:
                     victim.set_trigger(trigger)
@@ -171,15 +158,9 @@ def search_triggers_on_pretrained_lm(victim, dataset, tokenizer, epoch, batch_si
 def parse_args():
     parser = argparse.ArgumentParser("""Search for adversarial triggers on RoBERTa-large.""",
                                      formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--trigger_len", type=int, default=3,
+    parser.add_argument("--trigger_len", type=int, default=5,
                         help="The length of the trigger.")
     parser.add_argument("--num_triggers", type=int, default=3, help="Number of triggers to be found.")
-    parser.add_argument("--trigger_pos", choices=["prefix", "suffix", "all"], default="all",
-                        help="The position of the trigger. \n"
-                        "`prefix` means the trigger should be used by placing before the text, \n"
-                        "`suffix` means the trigger should be used by placing after the text, \n"
-                        "`both` means the trigger can be used either way.\n")
-
     parser.add_argument("--subsample_size", type=int, default=1536,
                         help="Subsample the dataset. The sub-sampled dataset will be evenly splitted to search for "
                         "each trigger. \n"
@@ -189,13 +170,6 @@ def parse_args():
     parser.add_argument("--num_epochs", type=int, default=1, help="Number of epochs to search each trigger.")
     parser.add_argument("--seed", type=int, default=123, help="Random seed.")
     parser.add_argument("--alpha", type=float, default=0, help="The weight of the loss of triggers segment similarity.")
-    parser.add_argument("--loss_type", choices=["ce", "prob", "prob_sq", "mprob", "mprob_sq", "embdis"],
-                        default="ce", help="Choose the objective to search for the trigger. \n"
-                        "ce: maximize the cross entropy loss of the masked word. (Used in the paper).\n"
-                        "prob, prob_sq: minimize the (square of) probability of correctly predict the masked word.\n"
-                        "mprob, mprob_sq: minimize the (square of) probability of the maximum predicted probability "
-                        "at the masked position.\n"
-                        "embdis: maximize the embedding shift before and after inserting the trigger.")
     parser.add_argument("--gpu", type=int, default=0, help="GPU id.")
     return vars(parser.parse_args())
 
@@ -206,9 +180,7 @@ def main():
     print("Load roberta large.")
     np.random.seed(meta["seed"])
     torch.manual_seed(meta["seed"])
-    victim = RobertaClassifier(torch.device("cuda:%d" % meta["gpu"]), loss_type=meta["loss_type"], alpha=meta["alpha"])
-
-    # Load dataset =============================================
+    victim = RobertaClassifier(torch.device("cuda:%d" % meta["gpu"]), trigger_len=meta["trigger_len"], alpha=meta["alpha"])
     print("Load dataset.")
     meta["dataset"] = dataset_name = "wikitext"
     dataset_subset = "wikitext-2-raw-v1"
@@ -216,7 +188,7 @@ def main():
     np.random.shuffle(list(trainset_raw))
     trainset = []
     for item in trainset_raw:
-        item_tmp = dataset_mapping_wiki(item, tokenizer=victim.tokenizer, trigger_pos_config=meta["trigger_pos"])
+        item_tmp = dataset_mapping_wiki(item, tokenizer=victim.tokenizer)
         if item_tmp is not None:
             trainset.append(item_tmp)
             if len(trainset) == meta["subsample_size"]:
@@ -224,7 +196,6 @@ def main():
 
     assert len(trainset) == meta["subsample_size"]
 
-    # Search for triggers ======================================
     used_tokens = []
 
     bin_size = len(trainset) // meta["num_triggers"]
@@ -241,12 +212,10 @@ def main():
 
     print(triggers)
     meta["triggers"] = triggers
-
-    # Save results ==========================================
     os.makedirs(output_dir_root, exist_ok=True)
-    with open(output_dir_root + "{pos}_len{len}_alpha{alpha}_loss{loss}_seed{seed}_{exp_id}.json".format(
-              pos=meta["trigger_pos"], len=meta["trigger_len"], loss=meta["loss_type"], alpha=meta["alpha"],
-              seed=meta["seed"], exp_id=exp_id), "w") as f:
+    with open(output_dir_root + "len{len}_alpha{alpha}_seed{seed}_{exp_id}.json".format(
+            len=meta["trigger_len"], alpha=meta["alpha"],
+            seed=meta["seed"], exp_id=exp_id), "w") as f:
         json.dump(meta, f, indent=4)
 
 

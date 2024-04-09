@@ -1,1 +1,0 @@
-Predict the "{"mask"}" with "politics", "sports", "business" or "technology" to make the whole sentence semantically natural:

@@ -15,6 +15,8 @@ $\textit{LinkPrompt}$ is implemented on Python 3.9.18. To install all dependenci
 ```
 git clone https://github.com/SavannahXu79/LinkPrompt.git
 cd LinkPrompt
+conda create -n linkprompt python=3.9
+conda activate linkprompt
 pip install -r requirements.txt
 ```
 

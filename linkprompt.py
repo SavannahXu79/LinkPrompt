@@ -2,14 +2,13 @@ import argparse
 import datetime
 import json
 import os
-
 import datasets
 import numpy as np
 import pandas
 import torch
 import tqdm
+import nltk
 from nltk.tokenize import sent_tokenize
-
 from utils import RobertaClassifier
 
 datasets.set_caching_enabled(False)
@@ -18,7 +17,7 @@ exp_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
 output_dir_root = "triggers/"
 
-
+nltk.download('punkt')
 
 def dataset_mapping_wiki(item, tokenizer):
     """Process wiki data. For each sentence, mask one word and insert <trigger> near the <mask>."""

@@ -211,13 +211,7 @@ if __name__ == '__main__':
     EPOCHS = 10
     raw_dataset = raw_dataset_dict(dataset_name)
 
-    # if bert_type == 'bert-large-cased':
-    #     model_name = '/disk/Yibo/Data/Adv/bert-large-cased/'
-    # elif bert_type == 'roberta-large':
-    #     model_name = '/disk/Yibo/Data/Adv/roberta/'
-    # plm, tokenizer, model_config, WrapperClass = load_plm(bert_type.split('-')[0], bert_type)
-    model_name = "/home/xuyue/Model/roberta-large/"
-    plm, tokenizer, model_config, WrapperClass = load_plm(bert_type.split('-')[0], model_name)
+    plm, tokenizer, model_config, WrapperClass = load_plm(bert_type.split('-')[0], bert_type)
     default_state_dict = plm.state_dict()
 
     verbalizer_dict = {'ag_news': ManualVerbalizer(tokenizer, num_classes=4,
@@ -243,8 +237,7 @@ if __name__ == '__main__':
 
     template = ManualTemplate(tokenizer=tokenizer, text=template_text)
 
-    # tmp_tokenizer = AutoTokenizer.from_pretrained("FacebookAI/roberta/")
-    tmp_tokenizer = AutoTokenizer.from_pretrained('/home/xuyue/Model/roberta-large/')
+    tmp_tokenizer = AutoTokenizer.from_pretrained("FacebookAI/roberta/")
     with open(params.load_trigger, encoding='utf-8') as f:
         trigger_li = [tmp_tokenizer.convert_tokens_to_string(trigger_tokens)
                         for trigger_tokens in (json.load(f))["triggers"]]
